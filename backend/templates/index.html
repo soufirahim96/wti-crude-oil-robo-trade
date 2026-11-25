@@ -2536,14 +2536,26 @@
         }
       });
 
-      lwCandleSeries = lwChart.addCandlestickSeries({
-        upColor: '#10b981',
-        downColor: '#ef4444',
-        borderUpColor: '#10b981',
-        borderDownColor: '#ef4444',
-        wickUpColor: '#10b981',
-        wickDownColor: '#ef4444',
-      });
+      // Use addSeries with CandlestickSeries type (v5 API) with fallback to legacy addCandlestickSeries (v4)
+      if (typeof LightweightCharts.CandlestickSeries !== 'undefined') {
+        lwCandleSeries = lwChart.addSeries(LightweightCharts.CandlestickSeries, {
+          upColor: '#10b981',
+          downColor: '#ef4444',
+          borderUpColor: '#10b981',
+          borderDownColor: '#ef4444',
+          wickUpColor: '#10b981',
+          wickDownColor: '#ef4444',
+        });
+      } else {
+        lwCandleSeries = lwChart.addCandlestickSeries({
+          upColor: '#10b981',
+          downColor: '#ef4444',
+          borderUpColor: '#10b981',
+          borderDownColor: '#ef4444',
+          wickUpColor: '#10b981',
+          wickDownColor: '#ef4444',
+        });
+      }
 
       lwVolumeSeries = lwChart.addHistogramSeries({
         priceFormat: { type: 'volume' },
