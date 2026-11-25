@@ -66,8 +66,71 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # column already exists
     
+    # Table 3: API Credentials Store
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS api_credentials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key_name TEXT UNIQUE NOT NULL,
+        key_value TEXT NOT NULL,
+        description TEXT,
+        updated_at REAL
+    )
+    """)
+
     conn.commit()
     conn.close()
+
+# ─── Credentials Manager ──────────────────────────────────────────────────────
+
+def get_credentials() -> dict:
+    """Return all stored API credentials as {key_name: key_value}."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT key_name, key_value, description, updated_at FROM api_credentials ORDER BY id")
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+def get_credential(key_name: str) -> str | None:
+    """Return a single credential value by name, or None if not found."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT key_value FROM api_credentials WHERE key_name = ?", (key_name,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def upsert_credential(key_name: str, key_value: str, description: str = "") -> bool:
+    """Insert or update a credential. Returns True on success."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO api_credentials (key_name, key_value, description, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key_name) DO UPDATE SET
+                key_value = excluded.key_value,
+                description = excluded.description,
+                updated_at = excluded.updated_at
+        """, (key_name, key_value, description, time.time()))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        return False
+
+def delete_credential(key_name: str) -> bool:
+    """Delete a credential by name."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM api_credentials WHERE key_name = ?", (key_name,))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        return False
 
 def log_thought(symbol: str, price: float, rsi: float, trend: str, action: str, confidence: float, reasoning: str, key_used: str, safe_zone: str = None, ticks_target: int = 17, plan_a: str = None, plan_b: str = None, plan_c: str = None):
     conn = sqlite3.connect(DB_PATH)

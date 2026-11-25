@@ -669,6 +669,11 @@
           <i class="fa-solid fa-network-wired"></i>
           <span>Single Stream Hub</span>
         </a>
+
+        <a class="nav-item" data-tab="credentials" onclick="switchTab('credentials')">
+          <i class="fa-solid fa-key"></i>
+          <span>API Credentials</span>
+        </a>
       </nav>
 
       <!-- SIDEBAR FOOTER -->
@@ -1499,6 +1504,98 @@
         </div>
       </section>
 
+      <!-- ========================================== -->
+      <!-- TAB 10: API CREDENTIALS MANAGER            -->
+      <!-- ========================================== -->
+      <section id="tab-credentials" class="tab-pane">
+        <div class="glass-panel" style="padding: 1.5rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.5rem;">API Credentials Manager</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            Store your Gemini API keys securely in the local database. Keys saved here take priority over .env file.
+            Changes apply on next AI call cycle.
+          </p>
+
+          <!-- Active Key Status -->
+          <div id="credKeyStatus" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+            <i class="fa-solid fa-circle-nodes" style="font-size: 1.3rem; color: #10b981;"></i>
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">Loading key status...</div>
+              <div style="font-size: 0.78rem; color: var(--text-muted);" id="credKeySourceText">Checking source...</div>
+            </div>
+          </div>
+
+          <!-- Add / Update Key Form -->
+          <div class="glass-panel" style="padding: 1.25rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.03);">
+            <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem; color: #60a5fa;">
+              <i class="fa-solid fa-plus-circle"></i> Add / Update Gemini API Key
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <div>
+                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Key Slot</label>
+                <select id="credKeyName" style="width: 100%; background: #0f172a; border: 1px solid var(--border-color); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+                  <option value="GEMINI_KEY_1">GEMINI_KEY_1</option>
+                  <option value="GEMINI_KEY_2">GEMINI_KEY_2</option>
+                  <option value="GEMINI_KEY_3">GEMINI_KEY_3</option>
+                  <option value="GEMINI_KEY_4">GEMINI_KEY_4</option>
+                  <option value="GEMINI_KEY_5">GEMINI_KEY_5</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">API Key Value</label>
+                <input type="text" id="credKeyValue" placeholder="Paste your Gemini API key here (AQ.Ab8RN6...)"
+                  style="width: 100%; background: #0f172a; border: 1px solid var(--border-color); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;" />
+              </div>
+            </div>
+            <div style="margin-bottom: 0.75rem;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Description (optional)</label>
+              <input type="text" id="credKeyDesc" placeholder="e.g. HaG project binance - Tier 1"
+                style="width: 100%; background: #0f172a; border: 1px solid var(--border-color); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;" />
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <button onclick="saveCredential()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem;">
+                <i class="fa-solid fa-floppy-disk"></i> Save to Database
+              </button>
+              <button onclick="testCredential()" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+                <i class="fa-solid fa-vial"></i> Test This Key
+              </button>
+              <span id="credSaveStatus" style="font-size: 0.82rem; color: #10b981;"></span>
+            </div>
+          </div>
+
+          <!-- Stored Keys Table -->
+          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-muted);">
+            <i class="fa-solid fa-database"></i> Stored Keys in Database
+          </h3>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Key Slot</th>
+                  <th>Value (Masked)</th>
+                  <th>Description</th>
+                  <th>Last Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="credTableBody">
+                <tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Instructions -->
+          <div style="margin-top: 1.5rem; background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 1rem 1.25rem;">
+            <h4 style="font-size: 0.85rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-info"></i> How it works</h4>
+            <ul style="font-size: 0.8rem; color: var(--text-muted); padding-left: 1.2rem; line-height: 1.8;">
+              <li><strong style="color:#fff;">Database keys have highest priority</strong> — they override .env and all defaults</li>
+              <li>Get your key from: <a href="https://aistudio.google.com/apikey" target="_blank" style="color: #60a5fa;">aistudio.google.com/apikey</a></li>
+              <li>Keys are stored locally in <code>storage/hag_journal.db</code> — never pushed to GitHub</li>
+              <li>After saving, the bot uses the new key on the next AI evaluation cycle</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -1533,7 +1630,8 @@
       'backtest': 'Backtest Result Replay',
       'timeseries': 'Time-Series Engine Status',
       'users': 'User Management & Permissions',
-      'stream': 'Single Stream Hub'
+      'stream': 'Single Stream Hub',
+      'credentials': 'API Credentials Manager'
     };
 
     function switchTab(tabId) {
@@ -2548,6 +2646,122 @@
     fetchState();
     switchTradingViewChart("DIRECT:MCLF2027");
     loadTradingViewScript();
+
+    // ─── Credentials Manager ──────────────────────────────────────────
+    async function loadCredentials() {
+      try {
+        // Load key status
+        const statusRes = await fetch('/api/credentials/active-keys');
+        const status = await statusRes.json();
+        document.getElementById('credKeyStatus').querySelector('div div:first-child').textContent =
+          `${status.total_keys} Gemini Key${status.total_keys !== 1 ? 's' : ''} Active`;
+        document.getElementById('credKeySourceText').textContent =
+          `Source: ${status.source} · DB keys: ${status.db_key_count} · Env keys: ${status.env_key_count}`;
+
+        // Load stored keys table
+        const res = await fetch('/api/credentials');
+        const data = await res.json();
+        const tbody = document.getElementById('credTableBody');
+        if (!data.credentials || data.credentials.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 2rem;">No keys stored in database yet. Add one above.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.credentials.map(c => {
+          const updated = c.updated_at ? new Date(c.updated_at * 1000).toLocaleString() : '—';
+          return `<tr>
+            <td><span style="font-weight: 700; color: #60a5fa;">${c.key_name}</span></td>
+            <td><code style="font-size: 0.8rem; color: #10b981;">${c.key_value_masked}</code></td>
+            <td style="color: var(--text-muted); font-size: 0.82rem;">${c.description || '—'}</td>
+            <td style="color: var(--text-muted); font-size: 0.78rem;">${updated}</td>
+            <td>
+              <button onclick="deleteCredential('${c.key_name}')"
+                style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); padding: 0.3rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.78rem;">
+                <i class="fa-solid fa-trash"></i> Remove
+              </button>
+            </td>
+          </tr>`;
+        }).join('');
+      } catch (e) {
+        console.error('Credentials load error:', e);
+      }
+    }
+
+    async function saveCredential() {
+      const keyName = document.getElementById('credKeyName').value;
+      const keyValue = document.getElementById('credKeyValue').value.trim();
+      const desc = document.getElementById('credKeyDesc').value.trim();
+      const statusEl = document.getElementById('credSaveStatus');
+      if (!keyValue) { statusEl.textContent = '⚠ Key value is required'; statusEl.style.color = '#f87171'; return; }
+      statusEl.textContent = 'Saving...'; statusEl.style.color = '#94a3b8';
+      try {
+        const res = await fetch('/api/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key_name: keyName, key_value: keyValue, description: desc })
+        });
+        const data = await res.json();
+        if (data.status === 'saved') {
+          statusEl.textContent = `✓ ${keyName} saved successfully!`;
+          statusEl.style.color = '#10b981';
+          document.getElementById('credKeyValue').value = '';
+          document.getElementById('credKeyDesc').value = '';
+          loadCredentials();
+        } else {
+          statusEl.textContent = `✗ Error: ${data.error || 'Unknown error'}`;
+          statusEl.style.color = '#f87171';
+        }
+      } catch (e) {
+        statusEl.textContent = `✗ Network error`;
+        statusEl.style.color = '#f87171';
+      }
+    }
+
+    async function deleteCredential(keyName) {
+      if (!confirm(`Remove ${keyName} from database?`)) return;
+      await fetch(`/api/credentials/${keyName}`, { method: 'DELETE' });
+      loadCredentials();
+    }
+
+    async function testCredential() {
+      const keyValue = document.getElementById('credKeyValue').value.trim();
+      const statusEl = document.getElementById('credSaveStatus');
+      if (!keyValue) { statusEl.textContent = '⚠ Enter a key value first'; statusEl.style.color = '#f87171'; return; }
+      statusEl.textContent = 'Testing key against Gemini API...'; statusEl.style.color = '#94a3b8';
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-4-hydrogen:generateContent?key=${keyValue}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Reply with one word: OK' }] }],
+            generationConfig: { thinkingConfig: { thinkingLevel: 'LOW' } }
+          })
+        });
+        if (res.ok) {
+          statusEl.textContent = '✅ Tier 1 ACTIVE — Gemini 4 Hydrogen responded OK!';
+          statusEl.style.color = '#10b981';
+        } else {
+          const err = await res.json();
+          const code = res.status;
+          if (code === 429) statusEl.textContent = '✗ 429: Free Tier quota exceeded — link billing at console.cloud.google.com';
+          else if (code === 402) statusEl.textContent = '✗ 402: Prepaid credits depleted — switch to monthly billing';
+          else if (code === 403) statusEl.textContent = '✗ 403: Key invalid or not authorized';
+          else if (code === 503) statusEl.textContent = '⚠ 503: Model overloaded — Tier 1 likely active, retry in 5 min';
+          else statusEl.textContent = `✗ ${code}: ${err?.error?.message?.slice(0, 80) || 'Unknown error'}`;
+          statusEl.style.color = '#f87171';
+        }
+      } catch (e) {
+        statusEl.textContent = `✗ Test failed: ${e.message}`;
+        statusEl.style.color = '#f87171';
+      }
+    }
+
+    // Load credentials when tab is opened
+    const _origSwitchTab = switchTab;
+    switchTab = function(tabId) {
+      _origSwitchTab(tabId);
+      if (tabId === 'credentials') loadCredentials();
+    };
   </script>
 </body>
 </html>

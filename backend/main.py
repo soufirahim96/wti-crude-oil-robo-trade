@@ -16,6 +16,10 @@ from core.journal import (
     get_performance_stats,
     reset_journal,
     audit_and_patch_trades,
+    get_credentials,
+    get_credential,
+    upsert_credential,
+    delete_credential,
 )
 from core.trading_settings import get_trading_settings, save_trading_settings, set_ai_enabled
 from adapters.binance_adapter import binance_adapter
@@ -194,6 +198,69 @@ async def api_toggle_ai_kill_switch(request: Request):
             pass
         updated = set_ai_enabled(target_state)
         return {"status": "success", "ai_enabled": updated["ai_enabled"], "settings": updated}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── Credentials Manager API ──────────────────────────────────────────────────
+
+@app.get("/api/credentials")
+async def api_get_credentials():
+    """Return all stored credentials (values masked for display)."""
+    try:
+        rows = get_credentials()
+        masked = []
+        for r in rows:
+            v = r.get("key_value", "")
+            masked_val = v[:6] + "..." + v[-6:] if len(v) > 14 else "***"
+            masked.append({
+                "key_name": r["key_name"],
+                "key_value_masked": masked_val,
+                "description": r.get("description", ""),
+                "updated_at": r.get("updated_at")
+            })
+        return {"status": "ok", "credentials": masked, "count": len(masked)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/api/credentials")
+async def api_upsert_credential(request: Request):
+    """Add or update a credential in the database."""
+    try:
+        body = await request.json()
+        key_name = body.get("key_name", "").strip().upper()
+        key_value = body.get("key_value", "").strip()
+        description = body.get("description", "").strip()
+        if not key_name or not key_value:
+            return JSONResponse(status_code=400, content={"error": "key_name and key_value are required"})
+        ok = upsert_credential(key_name, key_value, description)
+        return {"status": "saved" if ok else "error", "key_name": key_name}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.delete("/api/credentials/{key_name}")
+async def api_delete_credential(key_name: str):
+    """Delete a credential from the database."""
+    try:
+        ok = delete_credential(key_name.upper())
+        return {"status": "deleted" if ok else "error", "key_name": key_name.upper()}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/credentials/active-keys")
+async def api_active_keys():
+    """Return how many Gemini keys are active and their source."""
+    try:
+        from core.journal import get_credentials as _gc
+        db_keys = [r for r in _gc() if r["key_name"].startswith("GEMINI_KEY_")]
+        env_keys = [v for k, v in os.environ.items() if k.startswith("GEMINI_KEY_") and v]
+        source = "database" if db_keys else ("env/.env" if env_keys else "hardcoded defaults")
+        return {
+            "status": "ok",
+            "total_keys": len(config.GEMINI_API_KEYS),
+            "source": source,
+            "db_key_count": len(db_keys),
+            "env_key_count": len(env_keys)
+        }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

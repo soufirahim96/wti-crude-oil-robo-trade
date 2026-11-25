@@ -14,6 +14,24 @@ _D5 = "QVEuQWI4Uk42SXBnX21EdnNJNzhPVVlrTGprN2NSRC1WeXhRUVJ2eFVONFAzRFotM0ZxNUE="
 _D6 = "QVEuQWI4Uk42THZXV201cXdPaW8wQ1lSZld6UUhhZEYtSXJIWTNiRGllTFlGa2tmMnNoYlE="
 _D7 = "QVEuQWI4Uk42SUVuU0tEcy1OREpISFE3bDVLeTRNTUhaRHJFdlBZLTV3LTdySWExSEZHb2c="
 
+def _load_gemini_keys_from_db() -> list[str]:
+    """Load Gemini API keys from the SQLite credentials store."""
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "storage", "hag_journal.db")
+        if not os.path.exists(db_path):
+            return []
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT key_value FROM api_credentials WHERE key_name LIKE 'GEMINI_KEY_%' ORDER BY key_name"
+        )
+        rows = cursor.fetchall()
+        conn.close()
+        return [r[0] for r in rows if r[0]]
+    except Exception:
+        return []
+
 class HaGConfig(BaseModel):
     BINANCE_API_KEY: str = os.getenv("BINANCE_API_KEY", "8T5tpraZ0mjWSBwHwGhW7avW0RGde76BrTk72QkvIEeuG4GJ0eL9fUaQ6dyqaX0A")
     BINANCE_SECRET_KEY: str = os.getenv("BINANCE_SECRET_KEY", "UWICcBhBShUWW29KwHXXrXHRPNmLgkKGbMO2OneABqu3ZW9SnrOYqChraoCWuHqm")
@@ -21,6 +39,11 @@ class HaGConfig(BaseModel):
 
     @property
     def GEMINI_API_KEYS(self) -> list[str]:
+        # Priority 1: SQLite credentials store (set via dashboard UI)
+        db_keys = _load_gemini_keys_from_db()
+        if db_keys:
+            return db_keys
+        # Priority 2: Environment variables / .env file
         keys = []
         for i in range(1, 8):
             k = os.getenv(f"GEMINI_KEY_{i}")
@@ -30,17 +53,18 @@ class HaGConfig(BaseModel):
             raw = os.getenv("GEMINI_API_KEYS", "")
             if raw:
                 keys = [x.strip() for x in raw.split(",") if x.strip()]
-        if not keys:
-            keys = [
-                base64.b64decode(_D1).decode("utf-8"),
-                base64.b64decode(_D2).decode("utf-8"),
-                base64.b64decode(_D3).decode("utf-8"),
-                base64.b64decode(_D4).decode("utf-8"),
-                base64.b64decode(_D5).decode("utf-8"),
-                base64.b64decode(_D6).decode("utf-8"),
-                base64.b64decode(_D7).decode("utf-8")
-            ]
-        return keys
+        if keys:
+            return keys
+        # Priority 3: Hardcoded encoded defaults
+        return [
+            base64.b64decode(_D1).decode("utf-8"),
+            base64.b64decode(_D2).decode("utf-8"),
+            base64.b64decode(_D3).decode("utf-8"),
+            base64.b64decode(_D4).decode("utf-8"),
+            base64.b64decode(_D5).decode("utf-8"),
+            base64.b64decode(_D6).decode("utf-8"),
+            base64.b64decode(_D7).decode("utf-8")
+        ]
 
     TARGET_SYMBOL: str = os.getenv("TARGET_SYMBOL", "MCLF2027")
     MCL_CONTRACT: str = "MCLF27"
