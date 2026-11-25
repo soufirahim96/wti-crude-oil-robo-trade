@@ -23,6 +23,8 @@ class BinanceTestnetAdapter(BaseBrokerAdapter):
         self._init_settings()
 
     def _init_settings(self):
+        if "MCL" in config.TARGET_SYMBOL:
+            return
         try:
             self.exchange.fapiPrivatePostLeverage({
                 "symbol": config.TARGET_SYMBOL,

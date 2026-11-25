@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
   <style>
     :root {
@@ -719,9 +720,9 @@
             <span>AI Pool:</span>
             <strong class="text-success">7 Google Accounts</strong>
           </div>
-          <button onclick="triggerCycle()" class="btn-action">
-            <i class="fa-solid fa-bolt"></i>
-            <span>Trigger Instant Cycle</span>
+          <button id="btn-ai-kill-switch" onclick="toggleAiKillSwitch()" class="btn-action" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9)); border: 1px solid rgba(248, 113, 113, 0.5);">
+            <i id="icon-ai-kill-switch" class="fa-solid fa-power-off"></i>
+            <span id="label-ai-kill-switch">Stop AI Calls (Kill Switch)</span>
           </button>
         </div>
       </header>
@@ -756,7 +757,7 @@
           <div class="metric-card glass-panel">
             <p class="card-label">Dual-Brain Engine</p>
             <h2 class="card-value" style="color: #818cf8;">7 Accounts</h2>
-            <p class="card-sub text-success">M5 Sentry (3.7) + M10 Macro (3.8)</p>
+            <p class="card-sub text-success">M5 Sentry (Hydrogen Medium/Low) + M10 Macro (Hydrogen High)</p>
           </div>
         </div>
 
@@ -774,10 +775,10 @@
             <div style="display: flex; align-items: center; gap: 0.6rem;">
               <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Active Contract:</span>
               <select id="tvContractSelector" onchange="switchTradingViewChart(this.value)" class="form-input" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; width: auto; font-weight: 600;">
-                <option value="NYMEX:MCLF2027" selected>MCLF2027 (Jan 2027 - 3M Contract)</option>
-                <option value="NYMEX:MCL1!">MCL1! (Active Micro WTI Continuous)</option>
-                <option value="NYMEX:CL1!">CL1! (Standard WTI Continuous)</option>
-                <option value="BINANCE:PAXGUSDT">PAXGUSDT (Gold Futures Demo)</option>
+                <option value="DIRECT:MCLF2027" selected>MCLF2027 (Jan 2027 - Direct Candlesticks Stream)</option>
+                <option value="TVC:USOIL">TVC:USOIL (Spot WTI Crude - Free TradingView Feed)</option>
+                <option value="NYMEX:MCL1!">NYMEX:MCL1! (Active Micro WTI Continuous)</option>
+                <option value="BINANCE:PAXGUSDT">BINANCE:PAXGUSDT (Crypto Gold Futures Demo)</option>
               </select>
             </div>
           </div>
@@ -862,7 +863,7 @@
               </thead>
               <tbody id="watchlistTableBody">
                 <tr>
-                  <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                  <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                     <i class="fa-solid fa-magnifying-glass-chart" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #3b82f6;"></i>
                     No coins scanned yet.<br>
                     <span style="font-size: 0.78rem; color: var(--text-dim);">Click <strong>"Scan Live Market"</strong> to query live Binance crypto pairs.</span>
@@ -878,11 +879,16 @@
       <!-- TAB 3: HOLDING & TRANSACTIONS              -->
       <!-- ========================================== -->
       <section id="tab-holdings" class="tab-pane">
-        <div class="metrics-grid-4">
+        <div class="metrics-grid-4" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));">
           <div class="metric-card glass-panel">
             <p class="card-label">Total Wallet Balance</p>
             <h2 class="card-value text-success" id="holdings-total-balance">--</h2>
             <p class="card-sub">Testnet Equity</p>
+          </div>
+          <div class="metric-card glass-panel" style="border: 1px solid rgba(16, 185, 129, 0.3);">
+            <p class="card-label">Total Realized PnL (DB)</p>
+            <h2 class="card-value" id="holdings-total-realized-pnl" style="color: #10b981;">+$0.00</h2>
+            <p class="card-sub" id="holdings-realized-sub">Summed from all DB trades</p>
           </div>
           <div class="metric-card glass-panel">
             <p class="card-label">Available Margin</p>
@@ -901,13 +907,69 @@
           </div>
         </div>
 
-        <div class="glass-panel" style="padding: 1.5rem;">
+        <div class="glass-panel" style="padding: 1.5rem; margin-top: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.15rem; font-weight: 700;">Complete Transaction Audit Ledger</h3>
-            <button onclick="clearTransactionTable()" style="background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer;">
-              <i class="fa-solid fa-broom"></i> Clear View
-            </button>
+            <div>
+              <h3 style="font-size: 1.15rem; font-weight: 700;">Complete Transaction Audit Ledger</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">Real-time synchronized transaction ledger recorded persistently in SQLite database.</p>
+            </div>
+            <div style="display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap;">
+              <!-- Rectangle 1: Lot Size (1 Lot = $1,000 USD) -->
+              <div style="display: flex; align-items: center; gap: 0.45rem; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(239, 68, 68, 0.45); padding: 0.3rem 0.65rem; border-radius: 8px;">
+                <span style="font-size: 0.72rem; color: #fca5a5; font-weight: 700; white-space: nowrap;">Lot Size <small style="color: var(--text-muted); font-weight: 500;">(1=$1k)</small>:</span>
+                <input id="input-lot-size" type="number" min="1" step="1" value="1" oninput="updateEffectiveCommissionPreview()" style="width: 52px; background: rgba(0,0,0,0.35); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.2rem 0.4rem; font-size: 0.78rem; font-family: var(--font-mono); text-align: center;" />
+              </div>
+
+              <!-- Rectangle 2: Commission Fee ($/Lot) -->
+              <div style="display: flex; align-items: center; gap: 0.45rem; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(245, 158, 11, 0.45); padding: 0.3rem 0.65rem; border-radius: 8px;">
+                <span style="font-size: 0.72rem; color: #fcd34d; font-weight: 700; white-space: nowrap;">Comm ($/Lot):</span>
+                <input id="input-commission-fee" type="number" min="0" step="0.5" value="3.00" oninput="updateEffectiveCommissionPreview()" style="width: 60px; background: rgba(0,0,0,0.35); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.2rem 0.4rem; font-size: 0.78rem; font-family: var(--font-mono); text-align: center;" />
+                <span id="effective-comm-badge" style="font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap;">(=$3.00)</span>
+                <button id="btn-save-trading-settings" onclick="saveTradingSettingsUI()" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); padding: 0.22rem 0.55rem; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
+                  Apply
+                </button>
+              </div>
+
+              <button onclick="fetchState()" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer;">
+                <i class="fa-solid fa-rotate"></i> Refresh DB
+              </button>
+              <button onclick="clearTransactionTable()" style="background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer;">
+                <i class="fa-solid fa-broom"></i> Clear View
+              </button>
+            </div>
           </div>
+
+          <!-- DB TRANSACTION AUDIT LEDGER SUMMARY BAR -->
+          <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+              <div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Total Realized PnL (All DB Trades)</span>
+                <strong id="ledger-summary-total-pnl" style="font-size: 1.25rem; color: #10b981; font-family: var(--font-mono); font-weight: 800;">+$0.00</strong>
+              </div>
+              <div style="height: 30px; width: 1px; background: var(--border-color);"></div>
+              <div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Closed Trades</span>
+                <span id="ledger-summary-closed-count" style="font-size: 0.95rem; font-weight: 700; color: #fff;">0</span>
+                <span id="ledger-summary-winloss" style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.35rem;">(0W / 0L)</span>
+              </div>
+              <div style="height: 30px; width: 1px; background: var(--border-color);"></div>
+              <div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Win Rate</span>
+                <span id="ledger-summary-win-rate" style="font-size: 0.95rem; font-weight: 700; color: #38bdf8;">0.0%</span>
+              </div>
+              <div style="height: 30px; width: 1px; background: var(--border-color);"></div>
+              <div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">SQLite Trade Records</span>
+                <span id="ledger-summary-total-records" style="font-size: 0.95rem; font-weight: 700; color: #cbd5e1;">0 records</span>
+              </div>
+            </div>
+            <div>
+              <span class="badge-mini" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.3rem 0.65rem; border-radius: 6px;">
+                <i class="fa-solid fa-database"></i> SQLite DB Synchronized
+              </span>
+            </div>
+          </div>
+
           <div class="data-table-container">
             <table class="data-table">
               <thead>
@@ -932,6 +994,15 @@
                   </td>
                 </tr>
               </tbody>
+              <tfoot id="fullTradesTableFoot" style="display: none;">
+                <tr style="background: rgba(255, 255, 255, 0.04); font-weight: 700; border-top: 2px solid rgba(255,255,255,0.15);">
+                  <td colspan="6" style="text-align: right; padding: 0.85rem 1rem; color: #94a3b8; font-size: 0.85rem;">
+                    <i class="fa-solid fa-calculator" style="margin-right: 0.4rem; color: var(--accent-cyan);"></i> TOTAL REALIZED PnL (ALL DB TRANSACTIONS):
+                  </td>
+                  <td id="ledger-footer-total-pnl" style="padding: 0.85rem 1rem; font-size: 1.05rem; font-weight: 800; font-family: var(--font-mono); color: #10b981;">+$0.00</td>
+                  <td colspan="2" id="ledger-footer-count" style="padding: 0.85rem 1rem; font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">0 records</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -949,53 +1020,77 @@
                 <i class="fa-solid fa-plus-circle text-gradient"></i> Define Analysis Logic & Assign AI Bot
               </h3>
               <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem;">
-                Configure custom confluence rules, timeframe scopes, and assign them to specific Gemini sub-agents.
+                Configure custom confluence rules, multi-timeframe safe zones, 17-tick scalping targets, and assign them to Gemini AI agents.
               </p>
             </div>
             <span class="badge-mini" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 0.3rem 0.65rem; border-radius: 6px;">
-              <i class="fa-solid fa-sliders"></i> RULE REGISTRY ENGINE
+              <i class="fa-solid fa-sliders"></i> DYNAMIC LOGIC ENGINE
             </span>
+          </div>
+
+          <!-- 1-CLICK QUICK LOGIC PRESET TEMPLATES -->
+          <div style="margin-bottom: 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase;">Quick Presets:</span>
+            <button type="button" onclick="applyRuleTemplate('ema_reaction')" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.35); padding: 0.3rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              <i class="fa-solid fa-gauge-high"></i> 1. EMA 7/9 Instant + 9/18 Average (Upper/Lower Close)
+            </button>
+            <button type="button" onclick="applyRuleTemplate('smc_elliott')" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); padding: 0.3rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              <i class="fa-solid fa-water"></i> 2. SMC & Elliott Wave 17-Tick Safe Zone
+            </button>
+            <button type="button" onclick="applyRuleTemplate('adaptive_multi_plan')" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); padding: 0.3rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              <i class="fa-solid fa-shield-halved"></i> 3. Adaptive Multi-Plan Scalper (A/B/C)
+            </button>
+            <button type="button" onclick="applyRuleTemplate('momentum_breakout')" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); padding: 0.3rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+              <i class="fa-solid fa-bolt"></i> 4. EMA9/21 + 7ADX Momentum Breakout
+            </button>
           </div>
 
           <form id="addRuleForm" onsubmit="submitNewRule(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; align-items: end;">
             <div>
               <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Logic Name</label>
-              <input type="text" id="ruleLogicName" class="form-input" placeholder="e.g. EMA9/21 + RSI55 Rejection" required>
+              <input type="text" id="ruleLogicName" class="form-input" placeholder="e.g. SMC & Elliott Wave 17-Tick Safe Zone" required>
             </div>
             <div>
               <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Target Timeframe Scope</label>
               <select id="ruleTargetScope" class="form-input">
+                <option value="Multi-TF (D1/4H/1H/30m/15m/5m)" selected>Multi-TF (D1 / 4H / 1H / 30m / 15m / 5m)</option>
+                <option value="Hourly Safe Scan (1H)">Hourly Safe Scan (1H Entry)</option>
+                <option value="15m/30m Confluence">15m / 30m Local Confluence</option>
                 <option value="M5 Sentry">M5 Sentry (Fast Execution)</option>
                 <option value="M10 Macro">M10 Macro (Superior Trend)</option>
-                <option value="M5/M10 Dual">M5 / M10 Dual Confluence</option>
-                <option value="H1 Swing">H1 Swing Bias</option>
               </select>
             </div>
             <div>
               <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Assigned AI Agent</label>
               <select id="ruleAssignedAgent" class="form-input">
                 <option value="Hermes Scalper Core">Hermes Scalper Core</option>
-                <option value="Gemini 3.8 Flash (Superior)">Gemini 3.8 Flash (Superior)</option>
-                <option value="Gemini 3.7 Flash (Fast)">Gemini 3.7 Flash (Fast Sentry)</option>
-                <option value="ADX Volatility Sentinel">ADX Volatility Sentinel</option>
+                <option value="Gemini 4 Hydrogen High">Gemini 4 Hydrogen High (Superior Macro)</option>
+                <option value="Gemini 4 Hydrogen Medium">Gemini 4 Hydrogen Medium (Fast Sentry)</option>
+                <option value="Gemini 4 Hydrogen Low">Gemini 4 Hydrogen Low (Lightweight)</option>
+                <option value="Multi-TF Safe Zone Sentinel">Multi-TF Safe Zone Sentinel</option>
               </select>
             </div>
             <div>
               <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Rule Classification</label>
               <select id="ruleType" class="form-input">
+                <option value="SMC_ELLIOTT_WAVE">Smart Money Concepts & Elliott Wave</option>
+                <option value="17_TICK_SCALPING">17-Tick Micro Scalping</option>
+                <option value="MULTI_TIMEFRAME_SAFEZONE">Multi-Timeframe Safe Zone</option>
                 <option value="MOMENTUM_CONFLUENCE">Momentum Confluence</option>
                 <option value="VOLATILITY_FILTER">Volatility / Gegar Filter</option>
-                <option value="BREAKOUT_CONFIRMATION">Breakout Confirmation</option>
                 <option value="REVERSAL_EXIT">Reversal Exit Strategy</option>
               </select>
             </div>
             <div style="grid-column: 1 / -1;">
-              <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Technical Conditions & Description</label>
-              <input type="text" id="ruleDescription" class="form-input" placeholder="e.g. ADX(7) > 23 AND RSI > 55 with candle close above swing resistance" required>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Technical Conditions & Custom Logic Prompt (Natural Language)</label>
+                <span style="font-size: 0.7rem; color: var(--accent-cyan);"><i class="fa-solid fa-wand-magic-sparkles"></i> Injected dynamically into Gemini Brain</span>
+              </div>
+              <textarea id="ruleDescription" rows="4" class="form-input" style="font-family: var(--font-sans); line-height: 1.5; resize: vertical;" placeholder="Type any custom trading logic here... e.g.:&#10;Use Elliott Wave and SMC to analyze across Daily, 4H, 1H, 30m, and 15m. Find safe zone entry where timeframes align. Target 17 ticks (0.01 per tick = $0.17). If safe zone indicates long, go long; if short, go short. Always prepare multi-scenario contingency: Plan A (17 ticks target), Plan B (invalidation reversal if liquidity swept), Plan C (adaptive defense if momentum stalls)." required></textarea>
             </div>
             <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.4rem;">
               <button type="submit" class="btn-action">
-                <i class="fa-solid fa-plus"></i> Register New Logic Rule
+                <i class="fa-solid fa-plus"></i> Register & Activate Logic Rule
               </button>
             </div>
           </form>
@@ -1004,7 +1099,10 @@
         <!-- ANALYSIS LOGIC REGISTRY TABLE -->
         <div class="glass-panel" style="padding: 1.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.15rem; font-weight: 700;">Registered Institutional Analysis Rules</h3>
+            <div>
+              <h3 style="font-size: 1.15rem; font-weight: 700;">Registered Institutional Analysis Rules</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">Rules with "ACTIVE" status are evaluated during every autonomous scanning cycle.</p>
+            </div>
             <button onclick="clearAnalysisLogicTable()" style="background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer;">
               <i class="fa-solid fa-trash-can"></i> Clear All Rules
             </button>
@@ -1013,25 +1111,97 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Rule ID</th>
-                  <th>Logic Name</th>
-                  <th>Scope</th>
-                  <th>Assigned Agent</th>
-                  <th>Classification</th>
-                  <th>Technical Description</th>
-                  <th>Action</th>
+                  <th style="width: 140px;">Rule ID & Status</th>
+                  <th style="width: 160px;">Logic Name</th>
+                  <th style="width: 130px;">Scope</th>
+                  <th style="width: 130px;">Assigned Agent</th>
+                  <th style="width: 95px; text-align: center;">Classification</th>
+                  <th>Technical Strategy & Instructions</th>
                 </tr>
               </thead>
               <tbody id="analysisLogicTableBody">
                 <tr>
-                  <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                  <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                     <i class="fa-solid fa-brain" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #06b6d4;"></i>
                     No custom analysis logic rules registered.<br>
-                    <span style="font-size: 0.78rem; color: var(--text-dim);">Use the form above to define and assign custom institutional logic to your AI agents.</span>
+                    <span style="font-size: 0.78rem; color: var(--text-dim);">Use the form above or pick a quick preset to define custom institutional logic.</span>
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- EDIT ANALYSIS LOGIC RULE MODAL             -->
+        <!-- ========================================== -->
+        <div id="editRuleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px); z-index: 9999; justify-content: center; align-items: center; padding: 1.5rem;">
+          <div class="glass-panel" style="width: 100%; max-width: 650px; background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 14px; padding: 1.75rem; box-shadow: 0 25px 50px rgba(0,0,0,0.85); max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+              <h3 style="font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; color: #fff;">
+                <i class="fa-solid fa-pen-to-square" style="color: #60a5fa;"></i> Edit Institutional Logic Rule (<span id="editRuleIdDisplay" style="color: var(--accent-cyan); font-family: var(--font-mono);">RULE-001</span>)
+              </h3>
+              <button type="button" onclick="closeEditRuleModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 0.25rem;">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            
+            <form id="editRuleForm" onsubmit="submitEditRule(event)" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <input type="hidden" id="editRuleId">
+              
+              <div style="grid-column: 1 / -1;">
+                <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Logic Name</label>
+                <input type="text" id="editRuleLogicName" class="form-input" required>
+              </div>
+
+              <div>
+                <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Target Timeframe Scope</label>
+                <select id="editRuleTargetScope" class="form-input">
+                  <option value="Multi-TF (D1/4H/1H/30m/15m/5m)">Multi-TF (D1 / 4H / 1H / 30m / 15m / 5m)</option>
+                  <option value="Hourly Safe Scan (1H)">Hourly Safe Scan (1H Entry)</option>
+                  <option value="15m/30m Confluence">15m / 30m Local Confluence</option>
+                  <option value="M5 Sentry">M5 Sentry (Fast Execution)</option>
+                  <option value="M10 Macro">M10 Macro (Superior Trend)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Assigned AI Agent</label>
+                <select id="editRuleAssignedAgent" class="form-input">
+                  <option value="Hermes Scalper Core">Hermes Scalper Core</option>
+                  <option value="Gemini 4 Hydrogen High">Gemini 4 Hydrogen High (Superior Macro)</option>
+                  <option value="Gemini 4 Hydrogen Medium">Gemini 4 Hydrogen Medium (Fast Sentry)</option>
+                  <option value="Gemini 4 Hydrogen Low">Gemini 4 Hydrogen Low (Lightweight)</option>
+                  <option value="Multi-TF Safe Zone Sentinel">Multi-TF Safe Zone Sentinel</option>
+                </select>
+              </div>
+
+              <div style="grid-column: 1 / -1;">
+                <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Rule Classification</label>
+                <select id="editRuleType" class="form-input">
+                  <option value="SMC_ELLIOTT_WAVE">Smart Money Concepts & Elliott Wave</option>
+                  <option value="17_TICK_SCALPING">17-Tick Micro Scalping</option>
+                  <option value="MULTI_TIMEFRAME_SAFEZONE">Multi-Timeframe Safe Zone</option>
+                  <option value="MOMENTUM_CONFLUENCE">Momentum Confluence</option>
+                  <option value="VOLATILITY_FILTER">Volatility / Gegar Filter</option>
+                  <option value="REVERSAL_EXIT">Reversal Exit Strategy</option>
+                </select>
+              </div>
+
+              <div style="grid-column: 1 / -1;">
+                <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 0.3rem;">Technical Conditions & Custom Logic Prompt (Natural Language)</label>
+                <textarea id="editRuleDescription" rows="5" class="form-input" style="font-family: var(--font-sans); line-height: 1.5; resize: vertical;" required></textarea>
+              </div>
+
+              <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+                <button type="button" onclick="closeEditRuleModal()" style="background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                  Cancel
+                </button>
+                <button type="submit" class="btn-action" style="padding: 0.5rem 1.25rem;">
+                  <i class="fa-solid fa-check"></i> Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </section>
@@ -1072,6 +1242,34 @@
           </div>
           <div style="height: 320px; width: 100%;">
             <canvas id="equityChart"></canvas>
+          </div>
+        </div>
+
+        <!-- DAILY TRADE SUMMARY (12:00 AM - 11:59 PM) -->
+        <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div>
+              <h3 style="font-size: 1.1rem; font-weight: 700;">Daily Trade Summary (12:00 AM – 11:59 PM)</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">Daily realized PnL, commission fees paid, and win/loss performance calculated from CLOSED transactions only.</p>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted); text-align: left; font-size: 0.75rem; text-transform: uppercase;">
+                  <th style="padding: 0.65rem 0.75rem;">Date</th>
+                  <th style="padding: 0.65rem 0.75rem;">Total Realized PnL</th>
+                  <th style="padding: 0.65rem 0.75rem;">Total Commission Fee Paid</th>
+                  <th style="padding: 0.65rem 0.75rem;">Win / Loss</th>
+                  <th style="padding: 0.65rem 0.75rem;">Win Rate %</th>
+                </tr>
+              </thead>
+              <tbody id="daily-summary-tbody">
+                <tr>
+                  <td colspan="5" style="padding: 1rem; text-align: center; color: var(--text-muted);">Loading daily trade summary...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -1186,7 +1384,7 @@
               </thead>
               <tbody id="backtestTableBody">
                 <tr>
-                  <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                  <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                     <i class="fa-solid fa-clock-rotate-left" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #f59e0b;"></i>
                     No backtest simulation executed yet.<br>
                     <span style="font-size: 0.78rem; color: var(--text-dim);">Configure parameters above and click <strong>"Run Simulation"</strong> to backtest against historical Binance candles.</span>
@@ -1295,7 +1493,7 @@
             <div style="text-align: center; max-width: 200px;">
               <i class="fa-solid fa-brain" style="font-size: 2.2rem; color: #10b981; margin-bottom: 0.5rem;"></i>
               <h4 style="font-weight: 700; font-size: 0.95rem;">Dual-Brain Agent</h4>
-              <p style="font-size: 0.75rem; color: var(--text-muted);">Hermes & Gemini 3.8/3.7</p>
+              <p style="font-size: 0.75rem; color: var(--text-muted);">Hermes & Gemini 4 Hydrogen (High/Med/Low)</p>
             </div>
           </div>
         </div>
@@ -1369,6 +1567,22 @@
         if (!res.ok) return;
         const data = await res.json();
 
+        // Sync Trading Settings (Lot Size & Commission) when inputs are not actively focused
+        if (data.trading_settings) {
+          const lotInput = document.getElementById('input-lot-size');
+          const commInput = document.getElementById('input-commission-fee');
+          if (lotInput && document.activeElement !== lotInput) {
+            lotInput.value = data.trading_settings.lot_size;
+          }
+          if (commInput && document.activeElement !== commInput) {
+            commInput.value = Number(data.trading_settings.commission_per_lot).toFixed(2);
+          }
+          updateEffectiveCommissionPreview();
+          if (typeof data.trading_settings.ai_enabled === 'boolean') {
+            renderAiKillSwitchUI(data.trading_settings.ai_enabled);
+          }
+        }
+
         // Target Symbol & Price
         if (data.symbol) {
           document.getElementById('val-symbol').innerText = data.symbol;
@@ -1425,14 +1639,52 @@
             if (t.action === 'SELL') badgeClass = 'badge-sell';
             if (t.action === 'CLOSE') badgeClass = 'badge-warn';
 
+            const ticksTarget = Number(t.ticks_target || 15);
+            const tickGainStr = (ticksTarget * 0.01).toFixed(2);
+            const safeZoneHtml = t.safe_zone ? `
+              <div style="margin-bottom: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+                <span class="badge-mini" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 7px; border-radius: 4px;">
+                  <i class="fa-solid fa-bullseye"></i> Safe Zone: ${t.safe_zone}
+                </span>
+                <span class="badge-mini" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 7px; border-radius: 4px;">
+                  <i class="fa-solid fa-crosshairs"></i> Target: ${ticksTarget} Ticks ($${tickGainStr})
+                </span>
+              </div>
+            ` : '';
+
+            const plansMatrixHtml = (t.plan_a || t.plan_b || t.plan_c) ? `
+              <div style="margin-top: 0.5rem; padding: 0.55rem 0.75rem; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; font-size: 0.76rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                ${t.plan_a ? `
+                  <div style="color: #34d399; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <strong style="white-space: nowrap;"><i class="fa-solid fa-circle-play"></i> Plan A (${ticksTarget} Ticks):</strong>
+                    <span style="color: #f1f5f9; line-height: 1.35;">${t.plan_a}</span>
+                  </div>
+                ` : ''}
+                ${t.plan_b ? `
+                  <div style="color: #fbbf24; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <strong style="white-space: nowrap;"><i class="fa-solid fa-shuffle"></i> Plan B (Sweep / Reversal):</strong>
+                    <span style="color: #f1f5f9; line-height: 1.35;">${t.plan_b}</span>
+                  </div>
+                ` : ''}
+                ${t.plan_c ? `
+                  <div style="color: #60a5fa; display: flex; align-items: flex-start; gap: 0.4rem;">
+                    <strong style="white-space: nowrap;"><i class="fa-solid fa-shield-halved"></i> Plan C (Adaptive Defense):</strong>
+                    <span style="color: #f1f5f9; line-height: 1.35;">${t.plan_c}</span>
+                  </div>
+                ` : ''}
+              </div>
+            ` : '';
+
             return `
               <div style="padding: 0.85rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 10px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                   <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${date}</span>
                   <span class="${badgeClass}">${actionLabel} (${Math.round(t.confidence * 100)}%)</span>
                 </div>
+                ${safeZoneHtml}
                 <p style="font-size: 0.86rem; color: #e5e7eb; line-height: 1.4; margin: 0.35rem 0;">"${t.reasoning}"</p>
-                <div style="font-size: 0.72rem; color: var(--text-dim); display: flex; justify-content: space-between; padding-top: 0.35rem; border-top: 1px solid rgba(255,255,255,0.04);">
+                ${plansMatrixHtml}
+                <div style="font-size: 0.72rem; color: var(--text-dim); display: flex; justify-content: space-between; padding-top: 0.35rem; margin-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.04);">
                   <span>Price: $${Number(t.price).toFixed(2)} | RSI: ${t.rsi} | Trend: ${t.trend}</span>
                   <span style="color: #818cf8; font-weight: 600;">${t.key_used}</span>
                 </div>
@@ -1444,9 +1696,45 @@
         // Render Trades in Robo Trade & Holdings Ledger (if any exist)
         const tradeContainer = document.getElementById('trade-list');
         const fullTradesBody = document.getElementById('fullTradesTableBody');
+        const fullTradesFoot = document.getElementById('fullTradesTableFoot');
+
+        // Update DB Ledger Summary metrics
+        if (data.ledger_summary) {
+          const sumPnl = Number(data.ledger_summary.total_realized_pnl || 0);
+          const pnlColor = sumPnl > 0 ? '#10b981' : (sumPnl < 0 ? '#ef4444' : '#94a3b8');
+          const pnlSign = sumPnl > 0 ? '+' : '';
+          const pnlFormatted = `${pnlSign}$${sumPnl.toFixed(2)}`;
+
+          const holdingsRealizedEl = document.getElementById('holdings-total-realized-pnl');
+          if (holdingsRealizedEl) {
+            holdingsRealizedEl.innerText = pnlFormatted;
+            holdingsRealizedEl.style.color = pnlColor;
+          }
+          const summaryPnlEl = document.getElementById('ledger-summary-total-pnl');
+          if (summaryPnlEl) {
+            summaryPnlEl.innerText = pnlFormatted;
+            summaryPnlEl.style.color = pnlColor;
+          }
+          const footerPnlEl = document.getElementById('ledger-footer-total-pnl');
+          if (footerPnlEl) {
+            footerPnlEl.innerText = pnlFormatted;
+            footerPnlEl.style.color = pnlColor;
+          }
+          const closedCountEl = document.getElementById('ledger-summary-closed-count');
+          if (closedCountEl) closedCountEl.innerText = `${data.ledger_summary.closed_trades || 0}`;
+          const winLossEl = document.getElementById('ledger-summary-winloss');
+          if (winLossEl) winLossEl.innerText = `(${data.ledger_summary.wins || 0}W / ${data.ledger_summary.losses || 0}L)`;
+          const winRateEl = document.getElementById('ledger-summary-win-rate');
+          if (winRateEl) winRateEl.innerText = `${Number(data.ledger_summary.win_rate || 0).toFixed(1)}%`;
+          const totalRecEl = document.getElementById('ledger-summary-total-records');
+          if (totalRecEl) totalRecEl.innerText = `${data.ledger_summary.total_trades || 0} records in SQLite`;
+          const footerCountEl = document.getElementById('ledger-footer-count');
+          if (footerCountEl) footerCountEl.innerText = `${data.ledger_summary.total_trades || 0} total trades`;
+        }
 
         if (data.trades && data.trades.length > 0) {
-          tradeContainer.innerHTML = data.trades.map(tr => {
+          // Latest 25 trades on robo-trade pane
+          tradeContainer.innerHTML = data.trades.slice(0, 25).map(tr => {
             const date = new Date(tr.timestamp * 1000).toLocaleTimeString();
             const isBuy = tr.side === 'BUY';
             const badgeClass = isBuy ? 'badge-buy' : (tr.side === 'SELL' ? 'badge-sell' : 'badge-warn');
@@ -1467,25 +1755,40 @@
             `;
           }).join('');
 
+          // Complete Transaction Audit Ledger with individual PnL
           fullTradesBody.innerHTML = data.trades.map(tr => {
             const date = new Date(tr.timestamp * 1000).toLocaleTimeString();
             const isBuy = tr.side === 'BUY';
             const badgeClass = isBuy ? 'badge-buy' : (tr.side === 'SELL' ? 'badge-sell' : 'badge-warn');
-            const pnl = Number(tr.realized_pnl || 0).toFixed(2);
+            const isClose = tr.side === 'CLOSE';
+            let pnlDisplay = '';
+            if (isClose) {
+              const pnlVal = Number(tr.realized_pnl || 0);
+              const color = pnlVal > 0 ? '#10b981' : (pnlVal < 0 ? '#ef4444' : '#94a3b8');
+              const sign = pnlVal > 0 ? '+' : '';
+              pnlDisplay = `<strong style="color: ${color}; font-family: var(--font-mono);">${sign}$${pnlVal.toFixed(2)}</strong>`;
+            } else {
+              pnlDisplay = `<span style="color: var(--text-muted); font-size: 0.75rem;">$0.00 (ENTRY)</span>`;
+            }
+
             return `
               <tr>
-                <td>#${tr.id}</td>
+                <td><strong style="color: var(--accent-cyan); font-family: var(--font-mono);">#${tr.id}</strong></td>
                 <td style="font-family: var(--font-mono); font-size: 0.75rem;">${date}</td>
                 <td><strong>${tr.symbol}</strong></td>
                 <td><span class="${badgeClass}">${tr.side}</span></td>
                 <td>${tr.quantity}</td>
                 <td>$${Number(tr.price).toFixed(2)}</td>
-                <td style="color: ${pnl >= 0 ? '#10b981' : '#ef4444'}">${pnl >= 0 ? '+' : ''}$${pnl}</td>
+                <td>${pnlDisplay}</td>
                 <td style="font-family: var(--font-mono); font-size: 0.75rem;">${tr.order_id}</td>
-                <td>${tr.status}</td>
+                <td><span class="badge-mini" style="background: rgba(255,255,255,0.05);">${tr.status}</span></td>
               </tr>
             `;
           }).join('');
+
+          if (fullTradesFoot) fullTradesFoot.style.display = 'table-footer-group';
+        } else {
+          if (fullTradesFoot) fullTradesFoot.style.display = 'none';
         }
 
       } catch (err) {
@@ -1501,7 +1804,7 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning...';
       }
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: #3b82f6;"></i> Fetching live Binance testnet pairs...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: #3b82f6;"></i> Fetching live Binance testnet pairs...</td></tr>`;
 
       try {
         const res = await fetch('/api/scanner/watchlist');
@@ -1525,10 +1828,10 @@
             `;
           }).join('');
         } else {
-          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">No coin data returned from exchange.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No coin data returned from exchange.</td></tr>`;
         }
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #ef4444;">Failed to fetch live scanner: ${err}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Failed to fetch live scanner: ${err}</td></tr>`;
       } finally {
         if (btn) {
           btn.disabled = false;
@@ -1541,7 +1844,7 @@
       const tbody = document.getElementById('watchlistTableBody');
       tbody.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+          <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
             <i class="fa-solid fa-magnifying-glass-chart" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #3b82f6;"></i>
             Table cleared.<br>
             <span style="font-size: 0.78rem; color: var(--text-dim);">Click <strong>"Scan Live Market"</strong> to refresh live market pairs.</span>
@@ -1563,6 +1866,49 @@
     }
 
     // 2. Analysis Logic Registry Functions
+    const RULE_PRESETS = {
+      ema_reaction: {
+        name: "EMA 7/9 Instant + EMA 9/18 Average (Upper/Lower Close)",
+        scope: "Hourly Safe Scan (1H)",
+        agent: "Hermes Scalper Core",
+        type: "MOMENTUM_CONFLUENCE",
+        desc: "Strictly maximum 1 entry per hour. Use EMA 7 and EMA 9 for fast market movement and instant reaction. Use EMA 9 and EMA 18 to compare recent price movement against some-time average price baseline. Entry confirmed ONLY if candle closes as an UPPER candle (for BUY) or LOWER candle (for SELL). Target 15 ticks ($0.15 on Micro WTI Crude)."
+      },
+      smc_elliott: {
+        name: "SMC & Elliott Wave 15-Tick Safe Zone",
+        scope: "Multi-TF (D1/4H/1H/30m/15m/5m)",
+        agent: "Gemini 4 Hydrogen High",
+        type: "SMC_ELLIOTT_WAVE",
+        desc: "Use Elliott Wave and SMC to analyze across Daily, 4H, 1H, 30m, and 15m. Find safe zone entry where timeframes align. Target 15 ticks (0.01 per tick = $0.15). If safe zone indicates long, go long; if short, go short. Always prepare multi-scenario contingency: Plan A (15 ticks target), Plan B (invalidation reversal if liquidity swept), Plan C (adaptive defense if momentum stalls)."
+      },
+      adaptive_multi_plan: {
+        name: "Adaptive Multi-Plan Scalper (A/B/C)",
+        scope: "Hourly Safe Scan (1H)",
+        agent: "Gemini 4 Hydrogen High",
+        type: "17_TICK_SCALPING",
+        desc: "Scan hourly Safe Zone for high-probability entry targeting 15 ticks. Do not stick to only 1 direction. Formulate Plan A (primary 15 ticks path), Plan B (contingency reversal if opposite liquidity swept), Plan C (adaptive early trailing exit if momentum stalls at +8 ticks)."
+      },
+      momentum_breakout: {
+        name: "EMA9/21 + 7ADX Momentum Breakout",
+        scope: "M5 Sentry",
+        agent: "Hermes Scalper Core",
+        type: "MOMENTUM_CONFLUENCE",
+        desc: "Fast scalper execution on M5. Buy when EMA9 crosses above EMA21 with RSI > 55 and ADX > 23 with candle close above resistance. Sell when EMA9 crosses below EMA21 with RSI < 45 and ADX > 23 with candle close below support. Target 15 ticks with 10 ticks SL."
+      }
+    };
+
+    function applyRuleTemplate(presetId) {
+      const p = RULE_PRESETS[presetId];
+      if (!p) return;
+      document.getElementById('ruleLogicName').value = p.name;
+      document.getElementById('ruleTargetScope').value = p.scope;
+      document.getElementById('ruleAssignedAgent').value = p.agent;
+      document.getElementById('ruleType').value = p.type;
+      document.getElementById('ruleDescription').value = p.desc;
+    }
+
+    let registeredRules = [];
+
     async function fetchAnalysisLogicRegistry() {
       const tbody = document.getElementById("analysisLogicTableBody");
       if (!tbody) return;
@@ -1570,35 +1916,117 @@
       try {
         const res = await fetch("/api/ai/analysis_logic");
         const data = await res.json();
-        if (data.rules && data.rules.length > 0) {
-          tbody.innerHTML = data.rules.map(r => `
-            <tr>
-              <td><strong style="color: var(--accent-cyan); font-family: var(--font-mono);">${r.id}</strong></td>
-              <td><strong style="color: #fff;">${r.logic_name}</strong></td>
-              <td><span class="badge-mini" style="background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 6px; border-radius: 4px;">${r.target_scope}</span></td>
-              <td><strong style="color: #f59e0b;">${r.assigned_agent}</strong></td>
-              <td><span class="badge-mini" style="background: rgba(16,185,129,0.15); color: #34d399; padding: 2px 6px; border-radius: 4px;">${r.rule_type}</span></td>
-              <td style="font-size: 0.8rem; color: #d1d5db;">${r.description}</td>
-              <td>
-                <button onclick="deleteAnalysisRule('${r.id}')" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 0.25rem 0.55rem; font-size: 0.72rem; cursor: pointer;">
-                  <i class="fa-solid fa-trash"></i> Delete
-                </button>
-              </td>
-            </tr>
-          `).join("");
+        registeredRules = data.rules || [];
+        if (registeredRules.length > 0) {
+          tbody.innerHTML = registeredRules.map(r => {
+            const isActive = r.is_active !== false;
+            const statusBadge = isActive 
+              ? `<button onclick="toggleAnalysisRule('${r.id}')" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-circle-check"></i> ACTIVE</button>`
+              : `<button onclick="toggleAnalysisRule('${r.id}')" style="background: rgba(107, 114, 128, 0.2); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.4); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 700; cursor: pointer;"><i class="fa-solid fa-circle-pause"></i> PAUSED</button>`;
+
+            const classificationText = (r.rule_type || 'MOMENTUM_CONFLUENCE').replace(/_/g, '_<br>');
+            return `
+              <tr style="${isActive ? '' : 'opacity: 0.6;'}">
+                <td style="vertical-align: top; width: 140px;">
+                  <div style="display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start;">
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                      <strong style="color: var(--accent-cyan); font-family: var(--font-mono); font-size: 0.88rem;">${r.id}</strong>
+                      ${statusBadge}
+                    </div>
+                    <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.25rem;">
+                      <button onclick="openEditRuleModal('${r.id}')" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; padding: 0.22rem 0.52rem; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.25rem;" title="Edit Rule">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit
+                      </button>
+                      <button onclick="deleteAnalysisRule('${r.id}')" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 0.22rem 0.52rem; font-size: 0.72rem; cursor: pointer;" title="Delete Rule">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+                <td style="vertical-align: top; width: 160px;"><strong style="color: #fff; font-size: 0.85rem;">${r.logic_name}</strong></td>
+                <td style="vertical-align: top; width: 130px;"><span class="badge-mini" style="background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem;">${r.target_scope}</span></td>
+                <td style="vertical-align: top; width: 130px;"><strong style="color: #f59e0b; font-size: 0.82rem;">${r.assigned_agent}</strong></td>
+                <td style="vertical-align: top; width: 95px; text-align: center;">
+                  <span class="badge-mini" style="background: rgba(139,92,246,0.15); color: #a78bfa; padding: 3px 5px; border-radius: 4px; font-size: 0.68rem; line-height: 1.25; display: inline-block; word-break: break-word;">${classificationText}</span>
+                </td>
+                <td style="vertical-align: top; font-size: 0.82rem; color: #d1d5db; line-height: 1.45; white-space: pre-wrap; word-break: break-word;">${r.description}</td>
+              </tr>
+            `;
+          }).join("");
         } else {
           tbody.innerHTML = `
             <tr>
-              <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+              <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                 <i class="fa-solid fa-brain" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #06b6d4;"></i>
                 No custom analysis logic rules registered.<br>
-                <span style="font-size: 0.78rem; color: var(--text-dim);">Use the form above to define and assign custom institutional logic to your AI agents.</span>
+                <span style="font-size: 0.78rem; color: var(--text-dim);">Use the form above or pick a quick preset to define custom institutional logic.</span>
               </td>
             </tr>
           `;
         }
       } catch (e) {
         console.error("Failed to fetch analysis logic registry:", e);
+      }
+    }
+
+    function openEditRuleModal(ruleId) {
+      const rule = registeredRules.find(r => r.id === ruleId);
+      if (!rule) {
+        alert("Rule not found: " + ruleId);
+        return;
+      }
+      document.getElementById('editRuleId').value = rule.id;
+      document.getElementById('editRuleIdDisplay').innerText = rule.id;
+      document.getElementById('editRuleLogicName').value = rule.logic_name || '';
+      document.getElementById('editRuleTargetScope').value = rule.target_scope || 'Multi-TF (D1/4H/1H/30m/15m/5m)';
+      document.getElementById('editRuleAssignedAgent').value = rule.assigned_agent || 'Hermes Scalper Core';
+      document.getElementById('editRuleType').value = rule.rule_type || 'SMC_ELLIOTT_WAVE';
+      document.getElementById('editRuleDescription').value = rule.description || '';
+
+      const modal = document.getElementById('editRuleModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeEditRuleModal() {
+      const modal = document.getElementById('editRuleModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function submitEditRule(event) {
+      event.preventDefault();
+      const ruleId = document.getElementById('editRuleId').value;
+      const payload = {
+        logic_name: document.getElementById('editRuleLogicName').value,
+        target_scope: document.getElementById('editRuleTargetScope').value,
+        assigned_agent: document.getElementById('editRuleAssignedAgent').value,
+        rule_type: document.getElementById('editRuleType').value,
+        description: document.getElementById('editRuleDescription').value
+      };
+
+      try {
+        const res = await fetch(`/api/ai/analysis_logic/${ruleId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          closeEditRuleModal();
+          await fetchAnalysisLogicRegistry();
+        } else {
+          const err = await res.json();
+          alert("Failed to update rule: " + (err.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Network error updating rule: " + err);
+      }
+    }
+
+    async function toggleAnalysisRule(ruleId) {
+      try {
+        await fetch(`/api/ai/analysis_logic/${ruleId}/toggle`, { method: "POST" });
+        await fetchAnalysisLogicRegistry();
+      } catch (e) {
+        alert("Failed to toggle rule: " + e);
       }
     }
 
@@ -1629,6 +2057,7 @@
     }
 
     async function deleteAnalysisRule(ruleId) {
+      if (!confirm(`Are you sure you want to delete rule ${ruleId}?`)) return;
       try {
         await fetch(`/api/ai/analysis_logic/${ruleId}`, { method: "DELETE" });
         await fetchAnalysisLogicRegistry();
@@ -1637,17 +2066,60 @@
       }
     }
 
-    function clearAnalysisLogicTable() {
-      const tbody = document.getElementById("analysisLogicTableBody");
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
-            <i class="fa-solid fa-brain" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #06b6d4;"></i>
-            Registry cleared.<br>
-            <span style="font-size: 0.78rem; color: var(--text-dim);">Click "+ Register New Logic Rule" above to add new rules.</span>
-          </td>
-        </tr>
-      `;
+    async function clearAnalysisLogicTable() {
+      if (!confirm("Are you sure you want to clear all analysis rules?")) return;
+      try {
+        await fetch("/api/ai/analysis_logic/clear", { method: "POST" });
+        await fetchAnalysisLogicRegistry();
+      } catch (e) {
+        alert("Failed to clear rules: " + e);
+      }
+    }
+
+    function updateEffectiveCommissionPreview() {
+      const lotInput = document.getElementById('input-lot-size');
+      const commInput = document.getElementById('input-commission-fee');
+      const badge = document.getElementById('effective-comm-badge');
+      if (!lotInput || !commInput || !badge) return;
+      const lot = Math.max(1, parseFloat(lotInput.value || '1'));
+      const comm = Math.max(0, parseFloat(commInput.value || '0'));
+      badge.innerText = `(=\$${(lot * comm).toFixed(2)}/close)`;
+    }
+
+    async function saveTradingSettingsUI() {
+      const lotInput = document.getElementById('input-lot-size');
+      const commInput = document.getElementById('input-commission-fee');
+      const btn = document.getElementById('btn-save-trading-settings');
+      const lotSize = parseFloat(lotInput.value || '1');
+      const commFee = parseFloat(commInput.value || '3');
+      if (isNaN(lotSize) || lotSize < 1) {
+        alert('Lot size must be at least 1.');
+        return;
+      }
+      if (isNaN(commFee) || commFee < 0) {
+        alert('Commission fee cannot be negative.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/settings/trading', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lot_size: lotSize, commission_per_lot: commFee })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'Failed to save trading settings.');
+          return;
+        }
+        if (btn) {
+          const orig = btn.innerText;
+          btn.innerText = 'Saved!';
+          setTimeout(() => { btn.innerText = orig; }, 1200);
+        }
+        await fetchState();
+      } catch (e) {
+        alert('Error saving trading settings: ' + e);
+      }
     }
 
     // 3. Performance Review Functions
@@ -1702,6 +2174,29 @@
             }
           }
         });
+        const dailyTbody = document.getElementById('daily-summary-tbody');
+        if (dailyTbody) {
+          const daily = data.daily_summary || [];
+          if (daily.length === 0) {
+            dailyTbody.innerHTML = '<tr><td colspan="5" style="padding: 1rem; text-align: center; color: var(--text-muted);">No closed trades recorded yet.</td></tr>';
+          } else {
+            dailyTbody.innerHTML = daily.map(d => {
+              const pnlVal = Number(d.total_realized_pnl || 0);
+              const pnlStr = `${pnlVal >= 0 ? '+' : ''}$${pnlVal.toFixed(2)}`;
+              const pnlColor = pnlVal >= 0 ? '#10b981' : '#ef4444';
+              const commStr = `$${Number(d.total_commission || 0).toFixed(2)}`;
+              return `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 0.65rem 0.75rem; font-family: var(--font-mono); font-weight: 600;">${d.date}</td>
+                  <td style="padding: 0.65rem 0.75rem; font-family: var(--font-mono); font-weight: 700; color: ${pnlColor};">${pnlStr}</td>
+                  <td style="padding: 0.65rem 0.75rem; font-family: var(--font-mono); color: #fbbf24;">${commStr}</td>
+                  <td style="padding: 0.65rem 0.75rem; font-family: var(--font-mono);">${d.wins}W / ${d.losses}L</td>
+                  <td style="padding: 0.65rem 0.75rem; font-family: var(--font-mono); color: #60a5fa; font-weight: 600;">${Number(d.win_rate || 0).toFixed(1)}%</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
       } catch (err) {
         console.error("Error loading performance:", err);
       }
@@ -1758,7 +2253,7 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running Sim...';
       }
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom: 0.6rem; display: block; color: #f59e0b;"></i> Replaying historical klines & evaluating Stage 1/2 confluence...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom: 0.6rem; display: block; color: #f59e0b;"></i> Replaying historical klines & evaluating Stage 1/2 confluence...</td></tr>`;
 
       try {
         const res = await fetch("/api/backtest/run", {
@@ -1797,7 +2292,7 @@
           }
         }
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #ef4444;">Backtest failed: ${err}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">Backtest failed: ${err}</td></tr>`;
       } finally {
         if (btn) {
           btn.disabled = false;
@@ -1817,7 +2312,7 @@
 
       document.getElementById('backtestTableBody').innerHTML = `
         <tr>
-          <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+          <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
             <i class="fa-solid fa-clock-rotate-left" style="font-size: 2rem; margin-bottom: 0.6rem; display: block; color: #f59e0b;"></i>
             Backtest table cleared.<br>
             <span style="font-size: 0.78rem; color: var(--text-dim);">Configure parameters above and click <strong>"Run Simulation"</strong> to execute.</span>
@@ -1826,16 +2321,49 @@
       `;
     }
 
-    // Trigger Instant Cycle
-    async function triggerCycle() {
+    let currentAiEnabled = true;
+
+    function renderAiKillSwitchUI(aiEnabled) {
+      currentAiEnabled = !!aiEnabled;
+      const btn = document.getElementById('btn-ai-kill-switch');
+      const icon = document.getElementById('icon-ai-kill-switch');
+      const label = document.getElementById('label-ai-kill-switch');
+      if (!btn || !icon || !label) return;
+      if (currentAiEnabled) {
+        btn.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9))';
+        btn.style.borderColor = 'rgba(248, 113, 113, 0.5)';
+        icon.className = 'fa-solid fa-power-off';
+        label.innerText = 'Stop AI Calls (Kill Switch)';
+      } else {
+        btn.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.9))';
+        btn.style.borderColor = 'rgba(52, 211, 153, 0.6)';
+        icon.className = 'fa-solid fa-play';
+        label.innerText = 'AI STOPPED • Resume AI Calls';
+      }
+    }
+
+    // AI Kill Switch Toggle (stops/resumes paid Gemini API calls)
+    async function toggleAiKillSwitch() {
+      const targetState = !currentAiEnabled;
+      if (!targetState && !confirm("Engage AI Kill Switch? This will immediately stop ALL paid Gemini API calls (local Co-pilot continues safely at $0 cost).")) {
+        return;
+      }
       try {
-        const btn = event?.currentTarget;
+        const btn = document.getElementById('btn-ai-kill-switch');
         if (btn) btn.disabled = true;
-        await fetch('/api/cycle/trigger', { method: 'POST' });
+        const res = await fetch('/api/ai/kill_switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: targetState })
+        });
+        const data = await res.json();
+        if (res.ok && typeof data.ai_enabled === 'boolean') {
+          renderAiKillSwitchUI(data.ai_enabled);
+        }
         await fetchState();
         if (btn) btn.disabled = false;
       } catch (e) {
-        alert("Cycle trigger error: " + e);
+        alert("AI Kill Switch error: " + e);
       }
     }
 
@@ -1865,25 +2393,114 @@
     // ----------------------------------------------------
     // TRADINGVIEW LIVE CANDLESTICK CHART WIDGET LOADER
     // ----------------------------------------------------
-    let currentTvSymbol = "NYMEX:MCLF2027";
+    let currentTvSymbol = "DIRECT:MCLF2027";
+    let lwChart = null;
+    let lwCandleSeries = null;
+    let lwVolumeSeries = null;
+
+    async function renderLightweightCandlesticks(symbol = "MCLF2027") {
+      const container = document.getElementById('tradingview_chart_frame');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (typeof LightweightCharts === 'undefined') {
+        container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i> Loading Candlestick Engine...</div>`;
+        return;
+      }
+
+      lwChart = LightweightCharts.createChart(container, {
+        width: container.clientWidth || 800,
+        height: 480,
+        layout: {
+          background: { type: 'solid', color: '#090D16' },
+          textColor: '#9ca3af',
+          fontSize: 12,
+          fontFamily: 'Plus Jakarta Sans, sans-serif'
+        },
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.04)' }
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(255, 255, 255, 0.08)',
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.25,
+          },
+        },
+        timeScale: {
+          borderColor: 'rgba(255, 255, 255, 0.08)',
+          timeVisible: true,
+          secondsVisible: false,
+        }
+      });
+
+      lwCandleSeries = lwChart.addCandlestickSeries({
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderUpColor: '#10b981',
+        borderDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+        wickDownColor: '#ef4444',
+      });
+
+      lwVolumeSeries = lwChart.addHistogramSeries({
+        priceFormat: { type: 'volume' },
+        priceScaleId: '',
+        scaleMargins: {
+          top: 0.8,
+          bottom: 0,
+        },
+      });
+
+      try {
+        const res = await fetch(`/api/chart/candles?symbol=${symbol}&timeframe=5m&limit=100`);
+        const data = await res.json();
+        if (data.candles && data.candles.length > 0) {
+          lwCandleSeries.setData(data.candles);
+          const vols = data.candles.map(c => ({
+            time: c.time,
+            value: c.volume || 10,
+            color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'
+          }));
+          lwVolumeSeries.setData(vols);
+          lwChart.timeScale().fitContent();
+        }
+      } catch (e) {
+        console.error("Failed to load lightweight candles:", e);
+      }
+
+      window.addEventListener('resize', () => {
+        if (lwChart && container) {
+          lwChart.resize(container.clientWidth, 480);
+        }
+      });
+    }
 
     function loadTradingViewScript() {
       if (typeof TradingView === 'undefined') {
         const s = document.createElement('script');
         s.src = 'https://s3.tradingview.com/tv.js';
         s.async = true;
-        s.onload = () => createTradingViewWidget(currentTvSymbol);
         document.head.appendChild(s);
-      } else {
-        createTradingViewWidget(currentTvSymbol);
       }
     }
 
     function createTradingViewWidget(symbol) {
-      if (typeof TradingView === 'undefined') return;
+      if (typeof TradingView === 'undefined') {
+        loadTradingViewScript();
+        setTimeout(() => createTradingViewWidget(symbol), 800);
+        return;
+      }
       const container = document.getElementById('tradingview_chart_frame');
       if (!container) return;
       container.innerHTML = '';
+      lwChart = null;
+      lwCandleSeries = null;
+      lwVolumeSeries = null;
 
       new TradingView.widget({
         "autosize": true,
@@ -1907,7 +2524,11 @@
 
     async function switchTradingViewChart(symbol) {
       currentTvSymbol = symbol;
-      createTradingViewWidget(symbol);
+      if (symbol.startsWith("DIRECT:") || symbol.includes("MCLF2027")) {
+        await renderLightweightCandlesticks("MCLF2027");
+      } else {
+        createTradingViewWidget(symbol);
+      }
 
       const backendSymbol = symbol.includes("PAXG") ? "PAXGUSDT" : "MCLF2027";
       try {
@@ -1925,6 +2546,7 @@
     // Initial boot
     setInterval(fetchState, 4000);
     fetchState();
+    switchTradingViewChart("DIRECT:MCLF2027");
     loadTradingViewScript();
   </script>
 </body>

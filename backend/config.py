@@ -1,6 +1,9 @@
 import os
 import base64
+from dotenv import load_dotenv
 from pydantic import BaseModel
+
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 # Encoded defaults to satisfy GitHub push protection
 _D1 = "QVEuQWI4Uk42TGk1Wm1hTTBER2dPZFpubjhsRy1rMllpM2tYVmpRNXJUb01zd3FOeUlLeEE="
@@ -45,10 +48,12 @@ class HaGConfig(BaseModel):
     TIMEFRAME_MACRO: str = "10m"
     ORDER_QTY: float = 0.01
     LEVERAGE: int = 5
-    FAST_INTERVAL_SECONDS: int = 300       # 5 Minutes (Gemini 3.7 Flash)
-    MACRO_INTERVAL_SECONDS: int = 600      # 10 Minutes (Gemini 3.8 Flash Superior)
-    SUPERIOR_MODEL_NAME: str = "gemini-3.8-flash"
-    FAST_MODEL_NAME: str = "gemini-3.7-flash"
+    FAST_INTERVAL_SECONDS: int = 300       # 5 Minutes (Gemini 4 Hydrogen Medium)
+    MACRO_INTERVAL_SECONDS: int = 600      # 10 Minutes (Gemini 4 Hydrogen High)
+    SUPERIOR_MODEL_NAME: str = "gemini-4-hydrogen"
+    FAST_MODEL_NAME: str = "gemini-4-hydrogen"
+    LOW_MODEL_NAME: str = "gemini-4-hydrogen"
+    FALLBACK_MODEL_NAME: str = "gemini-3.8-flash"
     SL_TICKS: int = 100
     TP_TICKS: int = 600
     TICK_VALUE: float = 0.10

@@ -36,4 +36,4 @@ if __name__ == "__main__":
     print(f" Alternative Link:   http://localhost:{port}")
     print(f" API State Endpoint:  http://127.0.0.1:{port}/api/state")
     print(f"=======================================================\n")
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)

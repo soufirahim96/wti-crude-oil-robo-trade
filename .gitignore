@@ -9,3 +9,5 @@
 /tmp/
 opend/opend_linux_x64.bak
 *.log
+test_tier1.py
+storage/backup_pre_custom_logic/

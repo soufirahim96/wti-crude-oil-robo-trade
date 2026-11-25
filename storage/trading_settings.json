@@ -1,0 +1,5 @@
+{
+  "lot_size": 1,
+  "commission_per_lot": 3.0,
+  "ai_enabled": true
+}

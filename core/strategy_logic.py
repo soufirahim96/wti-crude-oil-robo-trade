@@ -112,6 +112,53 @@ def calculate_adx(candles: List[List[Any]], period: int = 7) -> float:
         
     return round(adx, 2)
 
+def calculate_stochastic(candles: List[List[Any]], k_period: int = 14, d_period: int = 3) -> Dict[str, Any]:
+    """
+    Calculates Fast/Slow Stochastic Oscillator (%K and %D) over specified lookback period.
+    Returns dict with k, d, k_prev, d_prev, cross_up, cross_down.
+    """
+    if len(candles) < k_period:
+        return {"k": 50.0, "d": 50.0, "k_prev": 50.0, "d_prev": 50.0, "cross_up": False, "cross_down": False}
+    
+    highs = [float(c[2]) for c in candles]
+    lows = [float(c[3]) for c in candles]
+    closes = [float(c[4]) for c in candles]
+
+    k_values = []
+    for i in range(k_period - 1, len(candles)):
+        window_high = max(highs[i - k_period + 1 : i + 1])
+        window_low = min(lows[i - k_period + 1 : i + 1])
+        c_price = closes[i]
+        denom = window_high - window_low
+        k_val = ((c_price - window_low) / denom * 100.0) if denom > 0 else 50.0
+        k_values.append(k_val)
+
+    if not k_values:
+        return {"k": 50.0, "d": 50.0, "k_prev": 50.0, "d_prev": 50.0, "cross_up": False, "cross_down": False}
+
+    d_values = []
+    for i in range(len(k_values)):
+        start = max(0, i - d_period + 1)
+        sub = k_values[start : i + 1]
+        d_values.append(sum(sub) / len(sub))
+
+    cur_k = round(k_values[-1], 2)
+    cur_d = round(d_values[-1], 2)
+    prev_k = round(k_values[-2], 2) if len(k_values) > 1 else cur_k
+    prev_d = round(d_values[-2], 2) if len(d_values) > 1 else cur_d
+
+    cross_up = (prev_k <= prev_d) and (cur_k > cur_d)
+    cross_down = (prev_k >= prev_d) and (cur_k < cur_d)
+
+    return {
+        "k": cur_k,
+        "d": cur_d,
+        "k_prev": prev_k,
+        "d_prev": prev_d,
+        "cross_up": cross_up,
+        "cross_down": cross_down
+    }
+
 def extract_market_features(candles: List[List[Any]]) -> Dict[str, Any]:
     """
     Standardizes raw OHLCV candles into actionable market features for the 2-Stage Framework.
@@ -125,18 +172,31 @@ def extract_market_features(candles: List[List[Any]]) -> Dict[str, Any]:
     lows = [float(c[3]) for c in candles]
     
     current_price = closes[-1]
+    ema7 = calculate_ema(closes, 7)
     ema9 = calculate_ema(closes, 9)
+    ema18 = calculate_ema(closes, 18)
     ema21 = calculate_ema(closes, 21)
     
-    # Previous candle EMAs to detect fresh cross
+    # Previous candle EMAs to detect fresh crosses
+    ema7_prev = calculate_ema(closes[:-1], 7) if len(closes) > 1 else ema7
     ema9_prev = calculate_ema(closes[:-1], 9) if len(closes) > 1 else ema9
+    ema18_prev = calculate_ema(closes[:-1], 18) if len(closes) > 1 else ema18
     ema21_prev = calculate_ema(closes[:-1], 21) if len(closes) > 1 else ema21
     
+    # Fast reaction: EMA 7 vs EMA 9
+    cross_7_above_9 = (ema7_prev <= ema9_prev) and (ema7 > ema9)
+    cross_7_below_9 = (ema7_prev >= ema9_prev) and (ema7 < ema9)
+
+    # Momentum vs some-time average: EMA 9 vs EMA 18
+    cross_9_above_18 = (ema9_prev <= ema18_prev) and (ema9 > ema18)
+    cross_9_below_18 = (ema9_prev >= ema18_prev) and (ema9 < ema18)
+
     cross_above = (ema9_prev <= ema21_prev) and (ema9 > ema21)
     cross_below = (ema9_prev >= ema21_prev) and (ema9 < ema21)
     
     rsi = calculate_rsi(closes, 14)
     adx = calculate_adx(candles, 7)
+    stoch = calculate_stochastic(candles, 14, 3)
     
     # Swing Support & Resistance over preceding 14 candles (excluding current active candle)
     lookback = min(14, len(candles) - 1)
@@ -150,8 +210,16 @@ def extract_market_features(candles: List[List[Any]]) -> Dict[str, Any]:
     close_above_resistance = current_price > resistance
     close_below_support = current_price < support
     
-    # User's Updated Rule: Compare current close with previous candle opening
-    prev_open = float(candles[-2][1]) if len(candles) >= 2 else current_price
+    # User's Candle Close Rule: Confirmed only if price closes upper or lower candle
+    prev_candle = candles[-2] if len(candles) >= 2 else candles[-1]
+    prev_open = float(prev_candle[1])
+    prev_close = float(prev_candle[4])
+    prev_high = float(prev_candle[2])
+    prev_low = float(prev_candle[3])
+    
+    close_upper_candle = (current_price > max(prev_open, prev_close)) and (current_price > ema7)
+    close_lower_candle = (current_price < min(prev_open, prev_close)) and (current_price < ema7)
+    
     close_above_prev_open = current_price > prev_open
     close_below_prev_open = current_price < prev_open
     
@@ -161,25 +229,50 @@ def extract_market_features(candles: List[List[Any]]) -> Dict[str, Any]:
     candle_gegar = current_candle_range > (2.5 * atr) if atr > 0 else False
     
     trend = "NEUTRAL"
-    if current_price > ema9 > ema21:
+    if current_price > ema7 > ema9 > ema18:
+        trend = "STRONG_BULLISH (EMA 7>9>18)"
+    elif current_price < ema7 < ema9 < ema18:
+        trend = "STRONG_BEARISH (EMA 7<9<18)"
+    elif current_price > ema9 > ema21:
         trend = "BULLISH_UPTREND"
     elif current_price < ema9 < ema21:
         trend = "BEARISH_DOWNTREND"
         
     return {
         "price": current_price,
+        "ema7": ema7,
         "ema9": ema9,
+        "ema18": ema18,
         "ema21": ema21,
+        "ema7_prev": ema7_prev,
         "ema9_prev": ema9_prev,
+        "ema18_prev": ema18_prev,
         "ema21_prev": ema21_prev,
+        "cross_7_above_9": cross_7_above_9,
+        "cross_7_below_9": cross_7_below_9,
+        "cross_9_above_18": cross_9_above_18,
+        "cross_9_below_18": cross_9_below_18,
         "cross_above": cross_above,
         "cross_below": cross_below,
+        "close_upper_candle": close_upper_candle,
+        "close_lower_candle": close_lower_candle,
+        "prev_open": round(prev_open, 2),
+        "prev_close": round(prev_close, 2),
+        "prev_high": round(prev_high, 2),
+        "prev_low": round(prev_low, 2),
+        "close_above_prev_open": close_above_prev_open,
+        "close_below_prev_open": close_below_prev_open,
         "rsi": rsi,
         "adx": adx,
         "adx_trending": adx > 23.0,
-        "prev_open": round(prev_open, 2),
-        "close_above_prev_open": close_above_prev_open,
-        "close_below_prev_open": close_below_prev_open,
+        "stoch_k": stoch["k"],
+        "stoch_d": stoch["d"],
+        "stoch_k_prev": stoch["k_prev"],
+        "stoch_d_prev": stoch["d_prev"],
+        "stoch_cross_up": stoch["cross_up"],
+        "stoch_cross_down": stoch["cross_down"],
+        "stoch_oversold": stoch["k"] < 20.0,
+        "stoch_overbought": stoch["k"] > 80.0,
         "resistance": round(resistance, 2),
         "support": round(support, 2),
         "close_above_resistance": close_above_resistance,
