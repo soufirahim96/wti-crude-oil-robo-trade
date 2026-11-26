@@ -88,6 +88,19 @@ class HermesTradingAgent:
 
         self.last_exit_reason = None
 
+        self.last_flat_thought_ts = 0.0
+
+        self.last_flat_thought_key = ""
+
+    def _log_flat_thought(self, force: bool = False, **kwargs):
+        """Throttle flat HOLD thought_journal writes to once every 60s unless forced or gate changes."""
+        now = time.time()
+        key_used = str(kwargs.get("key_used", ""))
+        if force or (now - self.last_flat_thought_ts >= 60.0) or (key_used != self.last_flat_thought_key):
+            log_thought(**kwargs)
+            self.last_flat_thought_ts = now
+            self.last_flat_thought_key = key_used
+
     def execute_cycle(self, is_macro: bool = False) -> dict:
 
         """
@@ -580,7 +593,7 @@ class HermesTradingAgent:
 
             action = decision.get("action", "HOLD")
 
-            log_thought(
+            self._log_flat_thought(force=(is_new_15m_candle or pullback_invalidated),
 
                 symbol=symbol,
 
@@ -644,7 +657,7 @@ class HermesTradingAgent:
 
                 hold_reason = f"Post-Exit Cooldown Gate: Transaction recently closed ({self.last_exit_reason or 'Exit'}). Mandatory 2-minute pause ({remaining_wait}s remaining) to let pullbacks/bounces settle before planning next entry."
 
-                log_thought(
+                self._log_flat_thought(force=(is_new_15m_candle or pullback_invalidated),
 
                     symbol=symbol,
 
@@ -701,7 +714,7 @@ class HermesTradingAgent:
 
                 hold_reason = "Candle Close Rule: BUY allowed ONLY on confirmed UPPER candle close (Close > Prev Candle & Close > EMA 7). Entry withheld."
 
-                log_thought(
+                self._log_flat_thought(force=(is_new_15m_candle or pullback_invalidated),
 
                     symbol=symbol,
 
@@ -738,7 +751,7 @@ class HermesTradingAgent:
 
                 hold_reason = "Candle Close Rule: SELL allowed ONLY on confirmed LOWER candle close (Close < Prev Candle & Close < EMA 7). Entry withheld."
 
-                log_thought(
+                self._log_flat_thought(force=(is_new_15m_candle or pullback_invalidated),
 
                     symbol=symbol,
 
