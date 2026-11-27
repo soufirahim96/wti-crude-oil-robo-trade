@@ -561,17 +561,11 @@ class HermesTradingAgent:
 
             action = str(decision.get("action", "HOLD")).upper()
 
-            is_anti_chase = bool(syn.get("is_extended", False)) or ("Anti-Chase Gate" in str(decision.get("reasoning", "")))
-
-            if is_anti_chase and action == "HOLD":
-
-                pass  # Never override an Anti-Chase Gate HOLD into BUY/SELL
-
-            elif features.get("close_upper_candle") and aligned_bias == "LONG" and not is_anti_chase:
+            if features.get("close_upper_candle") and aligned_bias == "LONG":
 
                 action = "BUY"
 
-            elif features.get("close_lower_candle") and aligned_bias == "SHORT" and not is_anti_chase:
+            elif features.get("close_lower_candle") and aligned_bias == "SHORT":
 
                 action = "SELL"
 
