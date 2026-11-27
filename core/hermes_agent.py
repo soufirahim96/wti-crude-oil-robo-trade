@@ -93,10 +93,10 @@ class HermesTradingAgent:
         self.last_flat_thought_key = ""
 
     def _log_flat_thought(self, force: bool = False, **kwargs):
-        """Throttle flat HOLD thought_journal writes to once every 60s unless forced or gate changes."""
+        """Throttle flat HOLD thought_journal writes to once every 30s unless forced or gate changes."""
         now = time.time()
         key_used = str(kwargs.get("key_used", ""))
-        if force or (now - self.last_flat_thought_ts >= 60.0) or (key_used != self.last_flat_thought_key):
+        if force or (now - self.last_flat_thought_ts >= 30.0) or (key_used != self.last_flat_thought_key):
             log_thought(**kwargs)
             self.last_flat_thought_ts = now
             self.last_flat_thought_key = key_used
